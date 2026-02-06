@@ -2,18 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
+import { useDogs } from '../../hooks/useDogs';
 import { getCommandById } from '../../data/trainingPrograms';
 import { updateCommandProgress, updateDog } from '../../lib/firestore';
 import { COLORS } from '../../constants/colors';
 import { Ionicons } from '@expo/vector-icons';
+import { CelebrationModal } from '../../components/CelebrationModal';
+import { playSound } from '../../lib/sounds';
 
 export default function SessionScreen() {
   const { programId, dogId } = useLocalSearchParams();
   const router = useRouter();
   const { user } = useAuth();
+  const { activeDog } = useDogs();
   const [seconds, setSeconds] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
   const program = typeof programId === 'string' ? getCommandById(programId) : null;
 
   useEffect(() => {
@@ -33,13 +38,16 @@ export default function SessionScreen() {
   };
 
   const handleCompleteSession = async () => {
-    if (!user || typeof dogId !== 'string' || !program) {
+    if (!user || typeof dogId !== 'string' || !program || !activeDog) {
       Alert.alert('Error', 'Missing information');
       return;
     }
 
     setIsCompleting(true);
     try {
+      // Play success sound
+      await playSound('success');
+
       // Update progress
       await updateCommandProgress(user.uid, dogId, program.id, {
         commandId: program.id,
@@ -51,17 +59,18 @@ export default function SessionScreen() {
         notes: '',
       });
 
-      Alert.alert('Great Job! 🎉', `Session completed in ${formatTime(seconds)}`, [
-        {
-          text: 'Done',
-          onPress: () => router.replace('/(tabs)/home'),
-        },
-      ]);
+      // Show celebration modal
+      setShowCelebration(true);
     } catch (error) {
       Alert.alert('Error', 'Failed to save session');
-    } finally {
       setIsCompleting(false);
     }
+  };
+
+  const handleCloseCelebration = () => {
+    setShowCelebration(false);
+    setIsCompleting(false);
+    router.replace('/(tabs)/home');
   };
 
   if (!program) {
@@ -141,6 +150,16 @@ export default function SessionScreen() {
       >
         <Text style={styles.cancelButtonText}>Cancel</Text>
       </TouchableOpacity>
+
+      <CelebrationModal
+        visible={showCelebration}
+        sessionTime={formatTime(seconds)}
+        commandName={program?.name || 'Training'}
+        streakCount={activeDog?.currentStreak || 0}
+        totalSessions={activeDog?.totalSessionsCompleted || 0}
+        newAchievements={['🎓 First Training Session!']}
+        onClose={handleCloseCelebration}
+      />
     </View>
   );
 }
