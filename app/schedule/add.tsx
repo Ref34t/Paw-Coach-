@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, ScrollView, TextInput, Switch } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useDogs } from '../../hooks/useDogs';
 import { useSchedule } from '../../hooks/useSchedule';
 import { COLORS } from '../../constants/colors';
 import { Ionicons } from '@expo/vector-icons';
+import { scheduleTrainingReminder, scheduleStreakAlert } from '../../lib/notifications';
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -21,6 +22,8 @@ export default function AddScheduleScreen() {
   const [selectedDays, setSelectedDays] = useState<string[]>(['mon', 'wed', 'fri']);
   const [hour, setHour] = useState('09');
   const [minute, setMinute] = useState('00');
+  const [enableReminder, setEnableReminder] = useState(true);
+  const [includeStreakAlert, setIncludeStreakAlert] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const toggleDay = (day: string) => {
@@ -47,19 +50,39 @@ export default function AddScheduleScreen() {
 
     setIsLoading(true);
     try {
+      const time = `${hour}:${minute}`;
       const scheduleData = {
         userId: user.uid,
         dogId: activeDog.id,
         title,
         days: selectedDays,
-        time: `${hour}:${minute}`,
-        enabled: true,
+        time,
+        enabled: enableReminder,
         notificationId: null,
         programId: null,
       };
 
       await createSchedule(scheduleData);
-      Alert.alert('Success', 'Schedule created!', [
+
+      // Schedule notifications if enabled
+      if (enableReminder) {
+        try {
+          // Schedule training reminder for selected days/time
+          await scheduleTrainingReminder(activeDog.name, time, selectedDays, title);
+          console.log('Training reminder scheduled');
+
+          // Schedule streak alert if enabled (8 PM daily)
+          if (includeStreakAlert) {
+            await scheduleStreakAlert(activeDog.name);
+            console.log('Streak alert scheduled');
+          }
+        } catch (error) {
+          console.error('Error scheduling notifications:', error);
+          // Don't fail the schedule creation if notifications fail
+        }
+      }
+
+      Alert.alert('Success', 'Schedule created with notifications!', [
         {
           text: 'OK',
           onPress: () => router.back(),
@@ -123,10 +146,44 @@ export default function AddScheduleScreen() {
         </View>
 
         <View style={styles.card}>
+          <View style={styles.reminderOption}>
+            <View style={styles.reminderLabel}>
+              <Text style={styles.label}>Enable Push Notifications</Text>
+              <Text style={styles.reminderDescription}>Get reminders at training time</Text>
+            </View>
+            <Switch
+              value={enableReminder}
+              onValueChange={setEnableReminder}
+              disabled={isLoading}
+              trackColor={{ false: COLORS.border, true: COLORS.primary }}
+              thumbColor={enableReminder ? COLORS.primary : COLORS.darkGray}
+            />
+          </View>
+        </View>
+
+        {enableReminder && (
+          <View style={styles.card}>
+            <View style={styles.reminderOption}>
+              <View style={styles.reminderLabel}>
+                <Text style={styles.label}>Evening Streak Alert</Text>
+                <Text style={styles.reminderDescription}>8 PM reminder to not break streak</Text>
+              </View>
+              <Switch
+                value={includeStreakAlert}
+                onValueChange={setIncludeStreakAlert}
+                disabled={isLoading}
+                trackColor={{ false: COLORS.border, true: COLORS.primary }}
+                thumbColor={includeStreakAlert ? COLORS.primary : COLORS.darkGray}
+              />
+            </View>
+          </View>
+        )}
+
+        <View style={styles.card}>
           <Text style={styles.label}>Quick Tips</Text>
           <Text style={styles.tip}>✓ Choose consistent times for best results</Text>
           <Text style={styles.tip}>✓ Morning sessions often work best</Text>
-          <Text style={styles.tip}>✓ Enable notifications to stay on track</Text>
+          <Text style={styles.tip}>✓ Notifications help build daily habits</Text>
         </View>
 
         <TouchableOpacity
@@ -243,6 +300,19 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginBottom: 8,
     lineHeight: 20,
+  },
+  reminderOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  reminderLabel: {
+    flex: 1,
+  },
+  reminderDescription: {
+    fontSize: 12,
+    color: COLORS.darkGray,
+    marginTop: 4,
   },
   button: {
     backgroundColor: COLORS.primary,

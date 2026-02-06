@@ -9,6 +9,7 @@ import { COLORS } from '../../constants/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { CelebrationModal } from '../../components/CelebrationModal';
 import { playSound } from '../../lib/sounds';
+import { sendAchievementNotification, sendMilestoneNotification } from '../../lib/notifications';
 
 export default function SessionScreen() {
   const { programId, dogId } = useLocalSearchParams();
@@ -58,6 +59,29 @@ export default function SessionScreen() {
         level: 'learning',
         notes: '',
       });
+
+      // Send achievement notification (e.g., first training session)
+      try {
+        if (activeDog.totalSessionsCompleted === 0) {
+          await sendAchievementNotification('First Training Session', activeDog.name);
+        }
+      } catch (error) {
+        console.error('Error sending achievement notification:', error);
+      }
+
+      // Send milestone notifications
+      try {
+        const newTotal = (activeDog.totalSessionsCompleted || 0) + 1;
+        if (newTotal === 50) {
+          await sendMilestoneNotification(50, 'sessions', activeDog.name);
+        } else if (newTotal === 100) {
+          await sendMilestoneNotification(100, 'sessions', activeDog.name);
+        } else if (newTotal === 250) {
+          await sendMilestoneNotification(250, 'sessions', activeDog.name);
+        }
+      } catch (error) {
+        console.error('Error sending milestone notification:', error);
+      }
 
       // Show celebration modal
       setShowCelebration(true);
