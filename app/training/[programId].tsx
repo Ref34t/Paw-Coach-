@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getCommandById } from '../../data/trainingPrograms';
+import { getVideoTutorial } from '../../data/videoTutorials';
 import { COLORS } from '../../constants/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { useDogs } from '../../hooks/useDogs';
@@ -20,6 +21,8 @@ export default function ProgramDetailScreen() {
     );
   }
 
+  const video = typeof programId === 'string' ? getVideoTutorial(programId) : null;
+
   const startSession = () => {
     if (!activeDog) {
       return;
@@ -27,6 +30,13 @@ export default function ProgramDetailScreen() {
     router.push({
       pathname: '/training/session',
       params: { programId: program.id, dogId: activeDog.id },
+    });
+  };
+
+  const watchVideo = () => {
+    router.push({
+      pathname: '/training/video',
+      params: { commandId: program.id },
     });
   };
 
@@ -46,6 +56,20 @@ export default function ProgramDetailScreen() {
           <Text style={styles.description}>{program.description}</Text>
           <Text style={styles.time}>⏱ {program.estimatedMinutes} minutes</Text>
         </View>
+
+        {video && (
+          <View style={styles.videoCard}>
+            <View style={styles.videoHeader}>
+              <Text style={styles.videoTitle}>📹 Video Tutorial Available</Text>
+              <Text style={styles.videoInstructor}>{video.instructor}</Text>
+            </View>
+            <Text style={styles.videoDescription}>{video.description}</Text>
+            <TouchableOpacity style={styles.videoButton} onPress={watchVideo}>
+              <Ionicons name="play-circle" size={20} color={COLORS.card} />
+              <Text style={styles.videoButtonText}>Watch Video ({video.duration})</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Steps</Text>
@@ -127,6 +151,51 @@ const styles = StyleSheet.create({
     marginTop: 16,
     borderRadius: 12,
     padding: 16,
+  },
+  videoCard: {
+    backgroundColor: COLORS.secondary,
+    margin: 12,
+    marginTop: 16,
+    borderRadius: 12,
+    padding: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.accent,
+  },
+  videoHeader: {
+    marginBottom: 12,
+  },
+  videoTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.card,
+    marginBottom: 4,
+  },
+  videoInstructor: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  videoDescription: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.9)',
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  videoButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  videoButtonText: {
+    color: COLORS.card,
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   description: {
     fontSize: 16,
