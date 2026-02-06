@@ -1,13 +1,28 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useAuth } from '../../hooks/useAuth';
 import { useDogs } from '../../hooks/useDogs';
+import { useProgress } from '../../hooks/useProgress';
+import { useRecommendations } from '../../hooks/useRecommendations';
 import { COLORS } from '../../constants/colors';
 import { useRouter } from 'expo-router';
+import React from 'react';
 
 export default function HomeScreen() {
-  const { userData } = useAuth();
+  const { userData, user } = useAuth();
   const { activeDog, isLoading } = useDogs();
+  const { progress, fetchProgress } = useProgress(user?.uid || '', activeDog?.id || '');
+  const { topRecommendations } = useRecommendations(
+    progress,
+    activeDog?.totalSessionsCompleted || 0,
+    activeDog?.currentStreak || 0
+  );
   const router = useRouter();
+
+  React.useEffect(() => {
+    if (user && activeDog) {
+      fetchProgress();
+    }
+  }, [user, activeDog]);
 
   if (isLoading) {
     return (
@@ -59,6 +74,28 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {topRecommendations.length > 0 && (
+          <View style={styles.recommendationSection}>
+            <Text style={styles.sectionTitle}>🤖 AI Recommendation</Text>
+            <TouchableOpacity
+              style={styles.recommendationCard}
+              onPress={() => router.push(`/training/${topRecommendations[0].command.id}`)}
+            >
+              <View>
+                <Text style={styles.recommendationIcon}>
+                  {topRecommendations[0].icon}
+                </Text>
+                <Text style={styles.recommendationName}>
+                  {topRecommendations[0].command.name}
+                </Text>
+                <Text style={styles.recommendationReason}>
+                  {topRecommendations[0].reason}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <TouchableOpacity
           style={styles.primaryButton}
           onPress={() => router.push('/(tabs)/training')}
@@ -68,9 +105,9 @@ export default function HomeScreen() {
 
         <TouchableOpacity
           style={styles.secondaryButton}
-          onPress={() => router.push('/(tabs)/progress')}
+          onPress={() => router.push('/(tabs)/recommendations')}
         >
-          <Text style={styles.secondaryButtonText}>View Progress</Text>
+          <Text style={styles.secondaryButtonText}>View AI Recommendations</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -103,6 +140,42 @@ const styles = StyleSheet.create({
     color: COLORS.darkGray,
     marginBottom: 30,
     textAlign: 'center',
+  },
+  recommendationSection: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+    marginBottom: 12,
+  },
+  recommendationCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.primary,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  recommendationIcon: {
+    fontSize: 28,
+    marginBottom: 8,
+  },
+  recommendationName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  recommendationReason: {
+    fontSize: 13,
+    color: COLORS.darkGray,
+    lineHeight: 18,
   },
   dogCard: {
     backgroundColor: COLORS.card,

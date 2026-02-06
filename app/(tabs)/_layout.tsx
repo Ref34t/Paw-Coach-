@@ -60,6 +60,15 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="recommendations"
+        options={{
+          title: 'Recommendations',
+          tabBarLabel: 'Recommendations',
+          headerTitle: 'AI Recommendations',
+          tabBarIcon: ({ color, size }) => <Ionicons name="sparkles" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
